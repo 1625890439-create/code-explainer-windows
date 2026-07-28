@@ -1,8 +1,9 @@
 import { defineConfig } from "electron-vite";
 
 export default defineConfig({
-  main: {},
+  main: {
+    envPrefix: "OPENAI_",
+  },
   preload: {},
-  renderer: {}
+  renderer: {},
 });
-

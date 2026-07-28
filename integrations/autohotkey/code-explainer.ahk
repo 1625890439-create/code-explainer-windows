@@ -2,10 +2,16 @@
 #SingleInstance Force
 
 ; Global entry point. Ctrl+Alt+E copies the current selection without losing the
-; user clipboard, then starts the packaged CLI. Replace AppPath during packaging.
-AppPath := A_ScriptDir "\\..\\..\\apps\\desktop\\Code Explainer.exe"
+; user clipboard, then sends it to the running desktop app via a named pipe.
+;
+; The pipe-client.js script reads the session token from the Electron app's
+; userData directory, accepts code on stdin, and handles the connection.
+
+NodeExe := "node"
+PipeClient := A_ScriptDir "\\..\\..\\apps\\desktop\\dist\\main\\pipe-client.js"
 
 ^!e:: {
+    ; Save original clipboard
     originalClipboard := ClipboardAll()
     A_Clipboard := ""
     Send "^c"
@@ -19,8 +25,12 @@ AppPath := A_ScriptDir "\\..\\..\\apps\\desktop\\Code Explainer.exe"
     if (StrLen(Trim(selectedCode)) = 0)
         return
 
-    ; Phase 1: pass text through a temporary named-pipe client, never through a command line.
-    ; Phase 2 implementation lives in apps/desktop/src/main/selection-server.ts.
-    Run '"' AppPath '" --selection-from-hotkey'
-}
+    ; Write selection to temp file, then pipe to node client via stdin
+    TempFile := A_Temp "\\code-explainer-selection.txt"
+    FileOpen(TempFile, "w", "UTF-8").Write(selectedCode)
 
+    ; Run pipe-client and feed it the selection via stdin redirection
+    RunWait 'cmd.exe /c "' NodeExe '" "' PipeClient '" < "' TempFile '"', , "Hide"
+
+    FileDelete(TempFile)
+}

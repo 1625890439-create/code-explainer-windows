@@ -1,6 +1,190 @@
 <!doctype html>
 <html lang="zh-CN">
-  <head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>Code Explainer</title></head>
-  <body><main><h1>代码解释</h1><p>等待选中代码。</p></main><script type="module" src="./index.ts"></script></body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Code Explainer</title>
+    <style>
+      :root {
+        --bg: #1e1e2e;
+        --surface: #2a2a3c;
+        --text: #e0e0f0;
+        --muted: #8888aa;
+        --accent: #89b4fa;
+        --danger: #f38ba8;
+        --code-bg: #11111b;
+        --radius: 8px;
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body {
+        font-family: "Segoe UI", system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+      header {
+        padding: 16px 24px;
+        background: var(--surface);
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      header h1 { font-size: 18px; font-weight: 600; }
+      header .badge {
+        font-size: 11px;
+        background: var(--accent);
+        color: var(--code-bg);
+        padding: 2px 8px;
+        border-radius: 99px;
+        font-weight: 600;
+      }
+      main {
+        flex: 1;
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        overflow-y: auto;
+      }
+      .placeholder {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: var(--muted);
+        text-align: center;
+        gap: 8px;
+      }
+      .placeholder kbd {
+        background: var(--surface);
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-family: "Cascadia Code", "Fira Code", monospace;
+        font-size: 14px;
+        border: 1px solid rgba(255,255,255,0.1);
+      }
+      .card {
+        background: var(--surface);
+        border-radius: var(--radius);
+        padding: 16px;
+      }
+      .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+      }
+      .card-header .lang-tag {
+        font-size: 12px;
+        background: rgba(137,180,250,0.15);
+        color: var(--accent);
+        padding: 2px 8px;
+        border-radius: 4px;
+      }
+      .card-header .meta {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      pre.code-block {
+        background: var(--code-bg);
+        border-radius: 6px;
+        padding: 12px 16px;
+        overflow-x: auto;
+        font-family: "Cascadia Code", "Fira Code", "JetBrains Mono", monospace;
+        font-size: 13px;
+        line-height: 1.6;
+        max-height: 200px;
+        white-space: pre-wrap;
+        word-break: break-all;
+      }
+      .result-section { margin-top: 12px; }
+      .result-section h3 {
+        font-size: 14px;
+        color: var(--accent);
+        margin-bottom: 6px;
+      }
+      .result-section p {
+        font-size: 13px;
+        line-height: 1.7;
+        opacity: 0.85;
+      }
+      .risks { margin-top: 12px; }
+      .risks li {
+        font-size: 13px;
+        padding: 4px 0;
+        color: var(--danger);
+        list-style: "⚠ ";
+        margin-left: 1em;
+      }
+      .follow-ups {
+        margin-top: 12px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .follow-ups .chip {
+        font-size: 12px;
+        background: rgba(137,180,250,0.1);
+        color: var(--accent);
+        padding: 4px 10px;
+        border-radius: 99px;
+        cursor: pointer;
+        border: 1px solid rgba(137,180,250,0.2);
+      }
+      .follow-ups .chip:hover { background: rgba(137,180,250,0.2); }
+      .empty-state {
+        text-align: center;
+        color: var(--muted);
+        padding: 40px;
+      }
+      .spinner {
+        width: 20px; height: 20px;
+        border: 2px solid var(--muted);
+        border-top-color: var(--accent);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        display: inline-block;
+        margin-right: 8px;
+        vertical-align: middle;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      .error-card {
+        background: rgba(243,139,168,0.1);
+        border: 1px solid rgba(243,139,168,0.3);
+        border-radius: var(--radius);
+        padding: 12px 16px;
+        margin-top: 8px;
+      }
+      .error-card p { color: var(--danger); font-size: 13px; }
+      button.retry {
+        margin-top: 8px;
+        background: var(--accent);
+        color: var(--code-bg);
+        border: none;
+        padding: 6px 14px;
+        border-radius: 6px;
+        font-size: 13px;
+        cursor: pointer;
+        font-weight: 500;
+      }
+      button.retry:hover { opacity: 0.85; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Code Explainer</h1>
+      <span class="badge" id="status-badge">等待选区</span>
+    </header>
+    <main id="app-main">
+      <div class="placeholder" id="placeholder">
+        <p>在任意编辑器中<strong>选中代码</strong></p>
+        <p>按下 <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>E</kbd></p>
+      </div>
+    </main>
+    <script type="module" src="./index.ts"></script>
+  </body>
 </html>
-
