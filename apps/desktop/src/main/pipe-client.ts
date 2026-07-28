@@ -12,6 +12,9 @@ import { randomUUID } from "node:crypto";
  * Usage: echo "<selected-code>" | node pipe-client.js [--language <lang>]
  */
 
+// \\.\pipe\ built from bytes to survive bundler re-processing
+const PIPE_PREFIX = Buffer.from([92, 92, 46, 92, 112, 105, 112, 101, 92]).toString();
+
 // Read selected code from stdin
 const chunks: Buffer[] = [];
 process.stdin.on("data", (chunk: Buffer) => chunks.push(chunk));
@@ -33,8 +36,8 @@ async function sendRequest(code: string): Promise<void> {
   const language = parseFlag("--language");
 
   // Read the pipe token from the project root (same dir as .env)
-  // pipe-client.js lives in apps/desktop/out/main → ../../.. = project root
-  const projectRoot = join(__dirname, "..", "..", "..");
+  // pipe-client.js lives in apps/desktop/out/main → ../../../.. = project root
+  const projectRoot = join(__dirname, "..", "..", "..", "..");
   const tokenPath = join(projectRoot, ".pipe-token");
 
   let token: string;
@@ -45,7 +48,7 @@ async function sendRequest(code: string): Promise<void> {
     process.exit(1);
   }
 
-  const PIPE_PATH = `\\\\.\\pipe\\code-explainer-v1-${token.substring(0, 8)}`;
+  const PIPE_PATH = PIPE_PREFIX + "code-explainer-v1-" + token.substring(0, 8);
 
   const payload = {
     token,
