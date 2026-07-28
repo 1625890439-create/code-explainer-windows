@@ -1,0 +1,15 @@
+{
+  "name": "code-explainer-windows",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "npm@10",
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "dev": "npm --workspace @code-explainer/desktop run dev",
+    "build": "npm run --workspaces --if-present build",
+    "typecheck": "npm run --workspaces --if-present typecheck",
+    "test": "npm run --workspaces --if-present test",
+    "cli": "npm --workspace @code-explainer/cli run start"
+  }
+}
+

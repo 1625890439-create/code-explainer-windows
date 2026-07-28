@@ -1,0 +1,9 @@
+{
+  "name": "@code-explainer/cli",
+  "private": true,
+  "type": "module",
+  "scripts": { "start": "tsx src/index.ts", "typecheck": "tsc --noEmit" },
+  "dependencies": { "@code-explainer/contracts": "*" },
+  "devDependencies": { "tsx": "^4.19.2", "typescript": "^5.7.3" }
+}
+

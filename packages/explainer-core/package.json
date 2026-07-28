@@ -1,0 +1,10 @@
+{
+  "name": "@code-explainer/explainer-core",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/index.ts",
+  "dependencies": { "@code-explainer/contracts": "*" },
+  "scripts": { "typecheck": "tsc --noEmit", "test": "node --test" },
+  "devDependencies": { "typescript": "^5.7.3" }
+}
+
