@@ -1,5 +1,6 @@
 import { app, BrowserWindow, globalShortcut, ipcMain } from "electron";
 import { join } from "node:path";
+import { writeFileSync, mkdirSync } from "node:fs";
 import type { ExplainRequest, ExplainResponse } from "@code-explainer/contracts";
 import { validateRequest, type ExplainerProvider } from "@code-explainer/explainer-core";
 import { OpenAiProvider } from "@code-explainer/explainer-core/src/providers/openai";
@@ -81,10 +82,21 @@ app.whenReady().then(() => {
   });
   selectionServer.start();
 
-  const userDataPath = app.getPath("userData");
-  selectionServer.writeConfigFile(userDataPath);
+  // Write token to project root — use app.getAppPath() for reliability
+  const appPath = app.getAppPath();
+  // Dev: appPath = .../apps/desktop, we need the project root (one level up to monorepo root)
+  const projectRoot = app.isPackaged ? join(appPath, "..") : join(appPath, "..", "..");
+  const tokenPath = join(projectRoot, ".pipe-token");
+  try {
+    writeFileSync(tokenPath, selectionServer.sessionToken, "utf-8");
+    console.log("[Token] Written to", tokenPath);
+  } catch (e: any) {
+    console.error("[Token] Failed to write:", e.message);
+  }
 
   console.log("[Pipe]", selectionServer.pipePath);
+  console.log("[AppPath]", appPath);
+  console.log("[ProjectRoot]", projectRoot);
 
   // Fallback: also register global hotkey (in case AHK is not running)
   const ok = globalShortcut.register("CommandOrControl+Alt+E", () => {

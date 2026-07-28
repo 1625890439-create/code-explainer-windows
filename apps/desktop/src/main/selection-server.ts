@@ -1,6 +1,7 @@
 import { createServer } from "node:net";
 import { randomBytes } from "node:crypto";
 import { join } from "node:path";
+import { writeFileSync } from "node:fs";
 import type { ExplainRequest } from "@code-explainer/contracts";
 import { validateRequest } from "@code-explainer/explainer-core";
 
@@ -100,10 +101,8 @@ export class SelectionServer {
     this.server.close();
   }
 
-  /** Write the token to a local config file the launcher can read. */
-  writeConfigFile(dir: string): void {
-    const fs = require("node:fs");
-    const configPath = join(dir, ".pipe-token");
-    fs.writeFileSync(configPath, this.token, "utf-8");
+  /** The session token. Exposed so the main process can write it to disk. */
+  get sessionToken(): string {
+    return this.token;
   }
 }

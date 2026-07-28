@@ -32,9 +32,10 @@ function parseFlag(name: string): string | undefined {
 async function sendRequest(code: string): Promise<void> {
   const language = parseFlag("--language");
 
-  // Read the pipe token from the Electron userData directory
-  const appData = process.env.APPDATA || join(process.env.HOME || "", "AppData", "Roaming");
-  const tokenPath = join(appData, "code-explainer", ".pipe-token");
+  // Read the pipe token from the project root (same dir as .env)
+  // pipe-client.js lives in apps/desktop/out/main → ../../.. = project root
+  const projectRoot = join(__dirname, "..", "..", "..");
+  const tokenPath = join(projectRoot, ".pipe-token");
 
   let token: string;
   try {
