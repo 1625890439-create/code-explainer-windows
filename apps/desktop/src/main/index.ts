@@ -1,18 +1,19 @@
-import { app, BrowserWindow, ipcMain } from "electron";
+import { app, BrowserWindow, globalShortcut, ipcMain } from "electron";
 import { join } from "node:path";
 import type { ExplainRequest, ExplainResponse } from "@code-explainer/contracts";
 import { validateRequest, type ExplainerProvider } from "@code-explainer/explainer-core";
 import { OpenAiProvider } from "@code-explainer/explainer-core/src/providers/openai";
-import { SelectionServer } from "./selection-server";
-import { loadEnv } from "./env-loader";
+import { SelectionServer } from "./selection-server.js";
+import { loadEnv } from "./env-loader.js";
 
 let mainWindow: BrowserWindow | undefined;
 const selectionServer = new SelectionServer();
 let provider: ExplainerProvider | null = null;
 
 function initProvider(): void {
-  // In development, .env is in the project root; in production, alongside the exe
-  const envDir = app.isPackaged ? join(app.getAppPath(), "..") : join(app.getAppPath(), "..", "..", "..");
+  const envDir = app.isPackaged
+    ? join(app.getAppPath(), "..")
+    : join(app.getAppPath(), "..", "..", "..");
   const env = loadEnv(envDir);
 
   const apiKey = env.OPENAI_API_KEY;
@@ -22,26 +23,20 @@ function initProvider(): void {
       baseUrl: env.OPENAI_BASE_URL,
       model: env.OPENAI_MODEL ?? "gpt-4o-mini",
     });
-    console.log("[Provider] OpenAI provider initialized (model:", env.OPENAI_MODEL ?? "gpt-4o-mini", ")");
-  } else {
-    console.log("[Provider] No OPENAI_API_KEY in .env — using stub responses");
+    console.log("[Provider]", env.OPENAI_MODEL ?? "gpt-4o-mini");
   }
 }
 
 async function explain(request: ExplainRequest): Promise<ExplainResponse> {
   const invalid = validateRequest(request);
   if (invalid) return invalid;
-
-  if (provider) {
-    return provider.explain(request);
-  }
-
+  if (provider) return provider.explain(request);
   return {
     requestId: request.requestId,
-    summary: "模型提供者尚未配置。",
-    details: `桌面端已收到选中的代码（${request.code.length} 字符，语言: ${request.language ?? "未知"}）。\n\n在项目根目录的 .env 文件中设置 OPENAI_API_KEY 来启用 AI 解释。`,
+    summary: "未配置 API Key。",
+    details: "在项目根目录 .env 中设置 OPENAI_API_KEY。",
     risks: [],
-    followUps: ["如何配置 API Key？", "支持哪些模型？"],
+    followUps: [],
     provider: "unconfigured",
   };
 }
@@ -57,8 +52,17 @@ function createWindow(): void {
       contextIsolation: true,
       nodeIntegration: false,
     },
+    show: false,
   });
+
   mainWindow.loadFile(join(__dirname, "../renderer/index.html"));
+
+  mainWindow.on("close", (e) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      e.preventDefault();
+      mainWindow.hide();
+    }
+  });
 }
 
 app.whenReady().then(() => {
@@ -67,8 +71,11 @@ app.whenReady().then(() => {
 
   ipcMain.handle("explain", (_, request: ExplainRequest) => explain(request));
 
+  // Pipe server: AHK sends selection here
   selectionServer.onRequest((request: ExplainRequest) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.show();
+      mainWindow.focus();
       mainWindow.webContents.send("selection-received", request);
     }
   });
@@ -77,10 +84,20 @@ app.whenReady().then(() => {
   const userDataPath = app.getPath("userData");
   selectionServer.writeConfigFile(userDataPath);
 
-  console.log(`[SelectionServer] Listening on ${selectionServer.pipePath}`);
+  console.log("[Pipe]", selectionServer.pipePath);
+
+  // Fallback: also register global hotkey (in case AHK is not running)
+  const ok = globalShortcut.register("CommandOrControl+Alt+E", () => {
+    console.log("[Hotkey] Ctrl+Alt+E pressed (AHK should be primary)");
+  });
+  if (ok) console.log("[Hotkey] Ctrl+Alt+E registered as fallback");
 });
 
 app.on("window-all-closed", () => {
+  // Keep running in background
+});
+
+app.on("will-quit", () => {
   selectionServer.stop();
-  if (process.platform !== "darwin") app.quit();
+  globalShortcut.unregisterAll();
 });

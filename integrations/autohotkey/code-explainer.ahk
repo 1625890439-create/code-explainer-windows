@@ -1,17 +1,15 @@
 #Requires AutoHotkey v2.0
 #SingleInstance Force
 
-; Global entry point. Ctrl+Alt+E copies the current selection without losing the
-; user clipboard, then sends it to the running desktop app via a named pipe.
-;
-; The pipe-client.js script reads the session token from the Electron app's
-; userData directory, accepts code on stdin, and handles the connection.
+; Ctrl+Alt+E: 复制当前选中文本，通过 named pipe 发送给 Code Explainer
+; 需要 Electron 桌面端正在运行（会生成 .pipe-token 文件）
 
 NodeExe := "node"
-PipeClient := A_ScriptDir "\\..\\..\\apps\\desktop\\out\\main\\pipe-client.js"
+; 相对于脚本所在目录 (integrations/autohotkey/) 找到 pipe-client.js
+PipeClient := A_ScriptDir "\..\..\apps\desktop\out\main\pipe-client.js"
 
 ^!e:: {
-    ; Save original clipboard
+    ; 1. 保存原始剪切板
     originalClipboard := ClipboardAll()
     A_Clipboard := ""
     Send "^c"
@@ -20,16 +18,19 @@ PipeClient := A_ScriptDir "\\..\\..\\apps\\desktop\\out\\main\\pipe-client.js"
         return
     }
 
+    ; 2. 读取选中文本
     selectedCode := A_Clipboard
+
+    ; 3. 恢复原始剪切板
     A_Clipboard := originalClipboard
+
     if (StrLen(Trim(selectedCode)) = 0)
         return
 
-    ; Write selection to temp file, then pipe to node client via stdin
-    TempFile := A_Temp "\\code-explainer-selection.txt"
+    ; 4. 写入临时文件，通过 stdin 传给 pipe-client
+    TempFile := A_Temp "\code-explainer-selection.txt"
     FileOpen(TempFile, "w", "UTF-8").Write(selectedCode)
 
-    ; Run pipe-client and feed it the selection via stdin redirection
     RunWait 'cmd.exe /c "' NodeExe '" "' PipeClient '" < "' TempFile '"', , "Hide"
 
     FileDelete(TempFile)
