@@ -2,13 +2,12 @@
 #SingleInstance Force
 
 ; Ctrl+Alt+E: 复制当前选中文本，通过 named pipe 发送给 Code Explainer
-; 需要 Electron 桌面端正在运行（会生成 .pipe-token 文件）
+; 需要 Electron 桌面端正在运行
 
 NodeExe := "node"
-; 相对于脚本所在目录 (integrations/autohotkey/) 找到 pipe-client.js
-PipeClient := A_ScriptDir "\..\..\apps\desktop\out\main\pipe-client.js"
+PipeClient := "C:\Users\admin\Desktop\Hermes\code-explainer-windows\apps\desktop\out\main\pipe-client.js"
 
-^!e:: {
+^Delete:: {
     ; 1. 保存原始剪切板
     originalClipboard := ClipboardAll()
     A_Clipboard := ""
@@ -29,9 +28,12 @@ PipeClient := A_ScriptDir "\..\..\apps\desktop\out\main\pipe-client.js"
 
     ; 4. 写入临时文件，通过 stdin 传给 pipe-client
     TempFile := A_Temp "\code-explainer-selection.txt"
+    try FileDelete(TempFile)
     FileOpen(TempFile, "w", "UTF-8").Write(selectedCode)
 
-    RunWait 'cmd.exe /c "' NodeExe '" "' PipeClient '" < "' TempFile '"', , "Hide"
+    ; 5. 执行 pipe-client
+    cmd := Format('cmd.exe /c ""{1}" "{2}" < "{3}" 2>&1"', NodeExe, PipeClient, TempFile)
+    RunWait cmd, , "Hide"
 
-    FileDelete(TempFile)
+    try FileDelete(TempFile)
 }

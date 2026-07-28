@@ -21,7 +21,6 @@ process.stdin.on("data", (chunk: Buffer) => chunks.push(chunk));
 process.stdin.on("end", () => {
   const code = Buffer.concat(chunks).toString("utf-8").trim();
   if (!code) {
-    console.error("No code received on stdin.");
     process.exit(1);
   }
   sendRequest(code);
@@ -32,25 +31,24 @@ function parseFlag(name: string): string | undefined {
   return i >= 0 ? process.argv[i + 1] : undefined;
 }
 
-async function sendRequest(code: string): Promise<void> {
+function sendRequest(code: string): void {
   const language = parseFlag("--language");
 
-  // Read the pipe token from the project root (same dir as .env)
-  // pipe-client.js lives in apps/desktop/out/main → ../../../.. = project root
-  const projectRoot = join(__dirname, "..", "..", "..", "..");
+  // pipe-client is standalone — use a fixed path to the project root
+  const projectRoot = "C:/Users/admin/Desktop/Hermes/code-explainer-windows";
   const tokenPath = join(projectRoot, ".pipe-token");
 
   let token: string;
   try {
     token = readFileSync(tokenPath, "utf-8").trim();
   } catch {
-    console.error("Pipe token not found. Is the desktop app running?");
+    process.stderr.write("Pipe token file not found at: " + tokenPath + "\n");
     process.exit(1);
   }
 
   const PIPE_PATH = PIPE_PREFIX + "code-explainer-v1-" + token.substring(0, 8);
 
-  const payload = {
+  const payload = JSON.stringify({
     token,
     requestId: randomUUID(),
     code,
@@ -58,30 +56,38 @@ async function sendRequest(code: string): Promise<void> {
     mode: "overview",
     source: "hotkey",
     createdAt: new Date().toISOString(),
-  };
+  });
 
   const socket = connect(PIPE_PATH);
 
+  let waitingForResponse = true;
+
   socket.on("connect", () => {
-    socket.write(JSON.stringify(payload));
-    socket.end();
+    socket.write(payload);
   });
 
   socket.on("data", (data: Buffer) => {
-    process.stdout.write(data.toString("utf-8"));
+    // Got response — exit cleanly
+    waitingForResponse = false;
+    socket.end();
+    process.exit(0);
+  });
+
+  socket.on("end", () => {
+    // Server closed the pipe after accepting — that's success
+    if (waitingForResponse) {
+      waitingForResponse = false;
+      process.exit(0);
+    }
   });
 
   socket.on("error", (err: NodeJS.ErrnoException) => {
-    if (err.code === "ENOENT") {
-      console.error("Desktop app is not running.");
-    } else {
-      console.error(`Pipe error: ${err.message}`);
-    }
+    process.stderr.write("Pipe error: " + (err.code || err.message) + "\n");
     process.exit(1);
   });
 
   socket.setTimeout(5000, () => {
-    console.error("Connection timed out.");
+    process.stderr.write("Timeout\n");
     process.exit(1);
   });
 }

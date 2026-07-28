@@ -1,6 +1,6 @@
-import { app, BrowserWindow, globalShortcut, ipcMain } from "electron";
+import { app, BrowserWindow, ipcMain } from "electron";
 import { join } from "node:path";
-import { writeFileSync, mkdirSync } from "node:fs";
+import { writeFileSync } from "node:fs";
 import type { ExplainRequest, ExplainResponse } from "@code-explainer/contracts";
 import { validateRequest, type ExplainerProvider } from "@code-explainer/explainer-core";
 import { OpenAiProvider } from "@code-explainer/explainer-core/src/providers/openai";
@@ -14,7 +14,7 @@ let provider: ExplainerProvider | null = null;
 function initProvider(): void {
   const envDir = app.isPackaged
     ? join(app.getAppPath(), "..")
-    : join(app.getAppPath(), "..", "..", "..");
+    : join(app.getAppPath(), "..", "..");
   const env = loadEnv(envDir);
 
   const apiKey = env.OPENAI_API_KEY;
@@ -25,6 +25,8 @@ function initProvider(): void {
       model: env.OPENAI_MODEL ?? "gpt-4o-mini",
     });
     console.log("[Provider]", env.OPENAI_MODEL ?? "gpt-4o-mini");
+  } else {
+    console.log("[Provider] No API key configured");
   }
 }
 
@@ -53,17 +55,10 @@ function createWindow(): void {
       contextIsolation: true,
       nodeIntegration: false,
     },
-    show: false,
+    show: true,  // Show immediately for debugging
   });
 
   mainWindow.loadFile(join(__dirname, "../renderer/index.html"));
-
-  mainWindow.on("close", (e) => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      e.preventDefault();
-      mainWindow.hide();
-    }
-  });
 }
 
 app.whenReady().then(() => {
@@ -74,6 +69,7 @@ app.whenReady().then(() => {
 
   // Pipe server: AHK sends selection here
   selectionServer.onRequest((request: ExplainRequest) => {
+    console.log("[Pipe] Request received:", request.code.substring(0, 50));
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.show();
       mainWindow.focus();
@@ -82,9 +78,8 @@ app.whenReady().then(() => {
   });
   selectionServer.start();
 
-  // Write token to project root — use app.getAppPath() for reliability
+  // Write token
   const appPath = app.getAppPath();
-  // Dev: appPath = .../apps/desktop, we need the project root (one level up to monorepo root)
   const projectRoot = app.isPackaged ? join(appPath, "..") : join(appPath, "..", "..");
   const tokenPath = join(projectRoot, ".pipe-token");
   try {
@@ -96,20 +91,10 @@ app.whenReady().then(() => {
 
   console.log("[Pipe]", selectionServer.pipePath);
   console.log("[AppPath]", appPath);
-  console.log("[ProjectRoot]", projectRoot);
-
-  // Fallback: also register global hotkey (in case AHK is not running)
-  const ok = globalShortcut.register("CommandOrControl+Alt+E", () => {
-    console.log("[Hotkey] Ctrl+Alt+E pressed (AHK should be primary)");
-  });
-  if (ok) console.log("[Hotkey] Ctrl+Alt+E registered as fallback");
 });
 
-app.on("window-all-closed", () => {
-  // Keep running in background
-});
+app.on("window-all-closed", () => {});
 
 app.on("will-quit", () => {
   selectionServer.stop();
-  globalShortcut.unregisterAll();
 });
