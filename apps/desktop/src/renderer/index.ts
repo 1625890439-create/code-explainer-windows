@@ -17,15 +17,10 @@ function el<T extends HTMLElement>(id: string): T {
   return document.getElementById(id) as T;
 }
 
-function qs<T extends HTMLElement>(selector: string, parent: ParentNode = document): T | null {
-  return parent.querySelector(selector);
-}
-
 /* ------------------------------------------------------------------ */
 /*  State                                                              */
 /* ------------------------------------------------------------------ */
 
-let currentRequest: ExplainRequest | null = null;
 let isLoading = false;
 
 /* ------------------------------------------------------------------ */
@@ -39,43 +34,10 @@ function setStatus(text: string, color = ""): void {
   else badge.style.background = "";
 }
 
-function showPlaceholder(): void {
-  const main = el("app-main");
-  main.innerHTML = `<div class="placeholder" id="placeholder">
-    <p>在任意编辑器中<strong>选中代码</strong></p>
-    <p>按下 <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>E</kbd></p>
-  </div>`;
-}
-
-function renderRequestCard(request: ExplainRequest): string {
-  const lang = request.language ?? "未知";
-  const time = new Date(request.createdAt).toLocaleTimeString("zh-CN");
-  const preview = request.code.length > 500
-    ? request.code.slice(0, 500) + "\n// … 共 " + request.code.length + " 字符"
-    : request.code;
-
-  return `<div class="card" id="request-card">
-    <div class="card-header">
-      <span class="lang-tag">${escapeHtml(lang)}</span>
-      <span class="meta">${request.code.length} 字符 · ${time}</span>
-    </div>
-    <pre class="code-block">${escapeHtml(preview)}</pre>
-    <div id="result-area" style="margin-top:12px"></div>
-  </div>`;
-}
-
-function renderLoading(): string {
-  return `<div style="padding:16px 0;text-align:center">
-    <span class="spinner"></span> 正在解释…
-  </div>`;
-}
-
 function renderResult(response: ExplainResponse): string {
   if ("code" in response) {
-    // ExplainError
     return `<div class="error-card">
       <p>${escapeHtml(response.message)}</p>
-      <button class="retry" id="btn-retry">重试</button>
     </div>`;
   }
 
@@ -87,16 +49,20 @@ function renderResult(response: ExplainResponse): string {
     ? `<div class="follow-ups">${response.followUps.map((f) => `<span class="chip">${escapeHtml(f)}</span>`).join("")}</div>`
     : "";
 
-  return `<div class="result-section">
-    <h3>📋 概述</h3>
-    <p>${escapeHtml(response.summary)}</p>
+  return `<div class="card" style="margin-top:0">
+    <div class="card-header">
+      <span class="lang-tag">${escapeHtml(response.provider)}</span>
+    </div>
+    <div class="result-section">
+      <h3>📋 概述</h3>
+      <p>${escapeHtml(response.summary)}</p>
+    </div>
     ${risksHtml}
     ${followUpsHtml}
     <div class="result-section" style="margin-top:16px">
       <h3>📝 详细解释</h3>
       <p style="white-space:pre-wrap">${escapeHtml(response.details)}</p>
     </div>
-    <div style="margin-top:12px;font-size:11px;color:var(--muted)">提供者: ${escapeHtml(response.provider)}</div>
   </div>`;
 }
 
@@ -109,20 +75,39 @@ function escapeHtml(text: string): string {
 /*  Actions                                                            */
 /* ------------------------------------------------------------------ */
 
-async function handleExplain(request: ExplainRequest): Promise<void> {
-  currentRequest = request;
+async function submitCode(): Promise<void> {
+  const codeInput = el<HTMLTextAreaElement>("code-input");
+  const code = codeInput.value.trim();
+  if (!code) return;
+
+  const langSelect = el<HTMLSelectElement>("lang-select");
+  const modeSelect = el<HTMLSelectElement>("mode-select");
+  const btn = el<HTMLButtonElement>("btn-explain");
+  const resultBlock = el("result-block");
+
+  const request: ExplainRequest = {
+    requestId: crypto.randomUUID(),
+    code,
+    language: langSelect.value || undefined,
+    mode: modeSelect.value as "overview" | "line-by-line" | "review",
+    source: "cli",
+    createdAt: new Date().toISOString(),
+  };
+
   isLoading = true;
+  btn.disabled = true;
+  btn.textContent = "⏳ 解释中…";
   setStatus("解释中…", "#f9e2af");
 
-  // Show the request card with loading
-  const main = el("app-main");
-  main.innerHTML = renderRequestCard(request);
-  const resultArea = el("result-area");
-  resultArea.innerHTML = renderLoading();
+  resultBlock.innerHTML = `<div style="padding:24px;text-align:center">
+    <span class="spinner"></span> 正在调用 DeepSeek-V4-Pro…
+  </div>`;
 
   try {
     const response = await window.codeExplainer.explain(request);
     isLoading = false;
+    btn.disabled = false;
+    btn.textContent = "⚡ 解释";
 
     if ("code" in response) {
       setStatus("出错", "var(--danger)");
@@ -130,17 +115,13 @@ async function handleExplain(request: ExplainRequest): Promise<void> {
       setStatus("已完成", "#a6e3a1");
     }
 
-    resultArea.innerHTML = renderResult(response);
-
-    // Wire up retry button if error
-    const retryBtn = qs<HTMLButtonElement>("#btn-retry");
-    if (retryBtn) {
-      retryBtn.addEventListener("click", () => handleExplain(request));
-    }
+    resultBlock.innerHTML = renderResult(response);
   } catch (err) {
     isLoading = false;
+    btn.disabled = false;
+    btn.textContent = "⚡ 解释";
     setStatus("连接失败", "var(--danger)");
-    resultArea.innerHTML = `<div class="error-card">
+    resultBlock.innerHTML = `<div class="error-card">
       <p>与桌面端通信失败。请重启应用。</p>
     </div>`;
   }
@@ -151,10 +132,41 @@ async function handleExplain(request: ExplainRequest): Promise<void> {
 /* ------------------------------------------------------------------ */
 
 function init(): void {
+  // Manual explain button
+  el<HTMLButtonElement>("btn-explain").addEventListener("click", submitCode);
+
+  // Ctrl+Enter shortcut in textarea
+  el<HTMLTextAreaElement>("code-input").addEventListener("keydown", (e: KeyboardEvent) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+      e.preventDefault();
+      submitCode();
+    }
+  });
+
+  // AHK pipe listener (for when AutoHotkey is available)
   window.codeExplainer.onSelectionReceived((request: ExplainRequest) => {
-    // Ignore if already processing; in Phase 3 we'll add a queue
     if (isLoading) return;
-    handleExplain(request);
+    // Auto-fill the input with received code
+    el<HTMLTextAreaElement>("code-input").value = request.code;
+    if (request.language) {
+      el<HTMLSelectElement>("lang-select").value = request.language;
+    }
+    submitCode();
+  });
+
+  // Auto-paste: detect paste into body when textarea not focused, route to input
+  document.addEventListener("paste", (e: ClipboardEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.tagName === "TEXTAREA" || target.tagName === "INPUT") return;
+    // If pasting elsewhere, focus the code input and let the paste land there
+    const codeInput = el<HTMLTextAreaElement>("code-input");
+    codeInput.focus();
+    // Small delay to let the paste event complete in the new target
+    setTimeout(() => {
+      if (codeInput.value.trim()) {
+        codeInput.scrollTop = 0;
+      }
+    }, 50);
   });
 }
 

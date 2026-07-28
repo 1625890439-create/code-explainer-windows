@@ -8,7 +8,7 @@
 ; userData directory, accepts code on stdin, and handles the connection.
 
 NodeExe := "node"
-PipeClient := A_ScriptDir "\\..\\..\\apps\\desktop\\dist\\main\\pipe-client.js"
+PipeClient := A_ScriptDir "\\..\\..\\apps\\desktop\\out\\main\\pipe-client.js"
 
 ^!e:: {
     ; Save original clipboard
