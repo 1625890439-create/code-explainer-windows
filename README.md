@@ -143,10 +143,10 @@ npx esbuild src/main/pipe-client.ts --bundle --platform=node --target=node18 --o
 - 检查 `.env` 中 API Key 是否正确
 - 运行 `curl` 测试 API 连通性：
   ```bash
-  curl https://token-api.yicloud.com/v1/chat/completions \
+  curl ${OPENAI_BASE_URL}/chat/completions \
     -H "Authorization: Bearer 你的Key" \
     -H "Content-Type: application/json" \
-    -d '{"model":"DeepSeek-V4-Pro","messages":[{"role":"user","content":"hi"}]}'
+    -d '{"model":"你的模型名称","messages":[{"role":"user","content":"hi"}]}'
   ```
 
 ### 端口被占用

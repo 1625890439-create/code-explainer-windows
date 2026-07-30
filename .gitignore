@@ -15,3 +15,5 @@ test-pipe*.ahk
 create-shortcut.vbs
 apps/desktop/c/
 
+.hermes/
+
