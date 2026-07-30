@@ -51,12 +51,16 @@ export class SelectionServer {
 
       socket.on("end", () => {
         try {
+          console.log("[SelectionServer] Received payload");
           const payload = JSON.parse(buffer);
 
+          console.log("[SelectionServer] Token check — received:", payload.token?.substring(0,8), "expected:", this.token.substring(0,8));
           if (payload.token !== this.token) {
+            console.log("[SelectionServer] Token MISMATCH, destroying");
             socket.destroy();
             return;
           }
+          console.log("[SelectionServer] Token OK");
 
           const request: ExplainRequest = {
             requestId: payload.requestId,

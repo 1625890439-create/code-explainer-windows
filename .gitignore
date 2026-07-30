@@ -6,4 +6,11 @@ out/
 .env
 .env.*
 !.env.example
+.pipe-token
+pipe-client.js
+*.lnk
+test-pipe*.js
+test-pipe*.ahk
+create-shortcut.vbs
+apps/desktop/c/
 

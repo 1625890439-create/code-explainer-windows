@@ -4,7 +4,7 @@
   "main": "out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
-    "build": "electron-vite build && esbuild src/main/pipe-client.ts --bundle --platform=node --target=node18 --outfile=out/main/pipe-client.js",
+    "build": "electron-vite build && esbuild src/main/pipe-client.ts --bundle --platform=node --target=node18 --outfile=../../pipe-client.js",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
