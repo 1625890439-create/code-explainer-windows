@@ -92,7 +92,7 @@ async function handleExplain(request: ExplainRequest): Promise<void> {
   setStatus("解释中…", "#f9e2af");
 
   const main = el("app-main");
-  main.innerHTML = renderCard(request) + `<div style="text-align:center;padding:24px"><span class="spinner"></span> 正在解释…</div>`;
+  main.innerHTML = renderCard(request) + `<div id="loading-indicator" style="text-align:center;padding:24px"><span class="spinner"></span> 正在解释…</div>`;
 
   try {
     const response = await window.codeExplainer.explain(request);
@@ -107,6 +107,9 @@ async function handleExplain(request: ExplainRequest): Promise<void> {
     const inner = document.getElementById("inner-result");
     if (inner) inner.innerHTML = renderResult(response);
 
+    const loader = document.getElementById("loading-indicator");
+    if (loader) loader.remove();
+
     const retryBtn = document.getElementById("btn-retry");
     if (retryBtn) {
       retryBtn.addEventListener("click", () => handleExplain(request));
@@ -116,6 +119,8 @@ async function handleExplain(request: ExplainRequest): Promise<void> {
     setStatus("连接失败", "var(--danger)");
     const inner = document.getElementById("inner-result");
     if (inner) inner.innerHTML = `<div class="error-card"><p>通信失败，请重启应用。</p></div>`;
+    const loader = document.getElementById("loading-indicator");
+    if (loader) loader.remove();
   }
 }
 

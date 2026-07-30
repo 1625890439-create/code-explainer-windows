@@ -23,7 +23,7 @@ Windows 代码解释工具。在任意编辑器中选中代码，按 `Ctrl+Alt+\
 winget install AutoHotkey.AutoHotkey --version 2.0.18
 
 # 进入项目目录
-cd C:\Users\admin\Desktop\Hermes\code-explainer-windows
+cd code-explainer-windows
 
 # 安装 Node 依赖（如遇 Electron 下载超时，设置国内镜像）
 npm install
@@ -41,8 +41,8 @@ npm install
 
 ```env
 OPENAI_API_KEY=你的API密钥
-OPENAI_BASE_URL=https://token-api.yicloud.com/v1
-OPENAI_MODEL=DeepSeek-V4-Pro
+OPENAI_BASE_URL=你的模型调用地址
+OPENAI_MODEL=你的模型名称
 ```
 
 支持任意 OpenAI 兼容接口（DeepSeek、通义千问、本地 LLM 等），修改 `OPENAI_BASE_URL` 和 `OPENAI_MODEL` 即可切换。
@@ -51,11 +51,11 @@ OPENAI_MODEL=DeepSeek-V4-Pro
 
 ```bash
 cd apps/desktop
-npx esbuild src/main/pipe-client.ts --bundle --platform=node --target=node18 --outfile=../../pipe-client.js
+npx esbuild src/main/pipe-client.ts --bundle --platform=node --target=node18 --outfile=../code-explainer-windows/pipe-client.js #outfile注意补充项目的绝对路径
 cd ..
 ```
 
-> pipe-client 是 AHK 热键与 Electron 之间的桥梁，不会被 dev build 覆盖。
+> pipe-client 是 AHK 热键与 Electron 之间的桥梁，不要被 dev build 覆盖。
 
 ### 4. 启动
 
@@ -70,11 +70,11 @@ cd ..
 
 ```bash
 # 终端 1：启动 Electron
-cd C:\Users\admin\Desktop\Hermes\code-explainer-windows\apps\desktop
+cd code-explainer-windows\apps\desktop
 npm run dev
 
 # 终端 2：加载热键（或双击运行）
-C:\Users\admin\Desktop\Hermes\code-explainer-windows\integrations\autohotkey\code-explainer.ahk
+code-explainer-windows\integrations\autohotkey\code-explainer.ahk
 ```
 
 ### 5. 使用
@@ -133,9 +133,11 @@ npx esbuild src/main/pipe-client.ts --bundle --platform=node --target=node18 --o
 ## 常见问题
 
 ### 热键无反应
+- 运行目录内 `launch-debug.ahk`，看卡在哪一步
 - 确认 AHK 脚本正在运行（系统托盘应有 AHK 图标）
 - 确认已选中文本（非空白区域）
 - 重新加载 AHK：双击 `code-explainer.ahk`
+
 
 ### 窗口弹出但提示 API 错误
 - 检查 `.env` 中 API Key 是否正确
