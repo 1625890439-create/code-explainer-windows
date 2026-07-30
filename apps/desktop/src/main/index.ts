@@ -93,7 +93,9 @@ app.whenReady().then(() => {
   console.log("[AppPath]", appPath);
 });
 
-app.on("window-all-closed", () => {});
+app.on("window-all-closed", () => {
+  app.quit();
+});
 
 app.on("will-quit", () => {
   selectionServer.stop();

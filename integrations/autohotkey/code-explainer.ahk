@@ -1,7 +1,8 @@
 #Requires AutoHotkey v2.0
 #SingleInstance Force
 
-PipeClient := "C:\Users\admin\Desktop\Hermes\code-explainer-windows\pipe-client.js"
+ProjectRoot := "C:\Users\admin\Desktop\Hermes\code-explainer-windows"
+PipeClient := ProjectRoot . "\pipe-client.js"
 
 ^!SC02B:: {
     KeyWait "Ctrl"
