@@ -23,6 +23,8 @@ function el<T extends HTMLElement>(id: string): T {
 
 let isLoading = false;
 let particleRaf = 0;
+/** 当前请求（用于追问时传递 originalRequestId + code） */
+let currentRequest: ExplainRequest | null = null;
 
 /* ------------------------------------------------------------------ */
 /*  Particle system (canvas)                                           */
@@ -68,23 +70,17 @@ function startParticles(): void {
     if (!ctx || !canvas) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Draw particles
     for (const p of particles) {
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
       ctx.fillStyle = `rgba(0, 229, 255, ${p.opacity})`;
       ctx.fill();
-
-      // Move
       p.x += p.vx;
       p.y += p.vy;
-
-      // Bounce edges
       if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
       if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
     }
 
-    // Draw connection lines for nearby particles
     for (let i = 0; i < particles.length; i++) {
       for (let j = i + 1; j < particles.length; j++) {
         const dx = particles[i].x - particles[j].x;
@@ -145,6 +141,8 @@ function renderCard(request: ExplainRequest): string {
     </div>
     <pre class="code-block">${escapeHtml(preview)}</pre>
     <div id="inner-result"></div>
+    <!-- 追问区域：新的追问结果会追加到这里 -->
+    <div id="follow-up-results"></div>
   </div>`;
 }
 
@@ -170,7 +168,7 @@ function renderResult(response: ExplainResponse): string {
     : "";
 
   const followUpsHtml = response.followUps.length
-    ? `<div class="follow-ups">${response.followUps.map((f) => `<span class="chip">${escapeHtml(f)}</span>`).join("")}</div>`
+    ? `<div class="follow-ups" id="follow-ups">${response.followUps.map((f) => `<span class="chip">${escapeHtml(f)}</span>`).join("")}</div>`
     : "";
 
   return `
@@ -193,11 +191,53 @@ function escapeHtml(text: string): string {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Follow-up question rendering                                       */
+/* ------------------------------------------------------------------ */
+
+/**
+ * 渲染追问回答卡片，追加到 #follow-up-results 区域。
+ * 每个追问卡片带有问题标签 + AI 回答 + 删除按钮。
+ */
+function appendFollowUpResult(question: string, response: ExplainResponse): void {
+  const container = document.getElementById("follow-up-results");
+  if (!container) return;
+
+  if ("code" in response) {
+    // 追问出错
+    const errorCard = document.createElement("div");
+    errorCard.className = "follow-up-card error-card";
+    errorCard.innerHTML = `<div class="fu-question">❓ ${escapeHtml(question)}</div>
+      <p>⚠ ${escapeHtml(response.message)}</p>`;
+    container.appendChild(errorCard);
+    return;
+  }
+
+  const card = document.createElement("div");
+  card.className = "follow-up-card";
+
+  card.innerHTML = `
+    <div class="fu-question">❓ ${escapeHtml(question)}</div>
+    <div class="fu-answer" style="white-space:pre-wrap">${escapeHtml(response.details)}</div>
+    <button class="fu-dismiss" title="移除">✕</button>
+  `;
+
+  // 删除按钮
+  const dismissBtn = card.querySelector(".fu-dismiss");
+  if (dismissBtn) {
+    dismissBtn.addEventListener("click", () => card.remove());
+  }
+
+  container.appendChild(card);
+  card.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+/* ------------------------------------------------------------------ */
 /*  Actions                                                            */
 /* ------------------------------------------------------------------ */
 
 async function handleExplain(request: ExplainRequest): Promise<void> {
   isLoading = true;
+  currentRequest = request;  // 记录当前请求，供追问使用
   setStatus("解析中…", "loading");
   stopParticles();
 
@@ -216,7 +256,6 @@ async function handleExplain(request: ExplainRequest): Promise<void> {
       setStatus("错误", "error");
     } else {
       setStatus("完成", "done");
-      // 触发闪光动画
       const card = document.getElementById("result-card");
       if (card) card.classList.add("result-ready");
     }
@@ -224,6 +263,8 @@ async function handleExplain(request: ExplainRequest): Promise<void> {
     const inner = document.getElementById("inner-result");
     if (inner) {
       inner.innerHTML = renderResult(response);
+      // 绑定追问 chip 点击事件
+      bindFollowUpChips(request);
     }
   } catch {
     isLoading = false;
@@ -241,6 +282,77 @@ async function handleExplain(request: ExplainRequest): Promise<void> {
       isLoading = false;
       handleExplain(request);
     });
+  }
+}
+
+/**
+ * 为 follow-ups 区域的 chip 绑定点击事件。
+ * 点击 chip 后发送追问请求，将 AI 回答追加到 #follow-up-results。
+ */
+function bindFollowUpChips(request: ExplainRequest): void {
+  const chips = document.querySelectorAll("#follow-ups .chip");
+  chips.forEach((chip) => {
+    chip.addEventListener("click", () => {
+      if (isLoading) return;
+      const question = chip.textContent ?? "";
+      handleFollowUp(request, question);
+    });
+  });
+}
+
+/**
+ * 执行追问：构造带 followUp 的 ExplainRequest，调 explain()，
+ * 结果追加到 #follow-up-results。
+ */
+async function handleFollowUp(request: ExplainRequest, question: string): Promise<void> {
+  isLoading = true;
+  setStatus("追问中…", "loading");
+
+  // 在追问区域插入加载指示
+  const container = document.getElementById("follow-up-results");
+  if (container) {
+    const loader = document.createElement("div");
+    loader.className = "follow-up-card";
+    loader.id = "fu-loading";
+    loader.innerHTML = `<div class="fu-question">❓ ${escapeHtml(question)}</div>
+      <div class="skeleton-row" style="height:16px"></div>`;
+    container.appendChild(loader);
+  }
+
+  try {
+    const response = await window.codeExplainer.explain({
+      requestId: crypto.randomUUID(),
+      code: request.code,
+      language: request.language,
+      mode: request.mode,
+      source: request.source,
+      createdAt: new Date().toISOString(),
+      followUp: {
+        originalRequestId: request.requestId,
+        question,
+      },
+    });
+
+    // 移除 loading
+    const loaderEl = document.getElementById("fu-loading");
+    if (loaderEl) loaderEl.remove();
+
+    appendFollowUpResult(question, response);
+    setStatus("完成", "done");
+  } catch {
+    const loaderEl = document.getElementById("fu-loading");
+    if (loaderEl) loaderEl.remove();
+    setStatus("追问失败", "error");
+
+    if (container) {
+      const errorCard = document.createElement("div");
+      errorCard.className = "follow-up-card error-card";
+      errorCard.innerHTML = `<div class="fu-question">❓ ${escapeHtml(question)}</div>
+        <p>⚠ 网络错误，请重试</p>`;
+      container.appendChild(errorCard);
+    }
+  } finally {
+    isLoading = false;
   }
 }
 

@@ -7,6 +7,11 @@ export interface ExplainRequest {
   mode: ExplainMode;
   source: "hotkey" | "context-menu" | "cli";
   createdAt: string;
+  /** 追问：原始请求 ID + 追问问题文本 */
+  followUp?: {
+    originalRequestId: string;
+    question: string;
+  };
 }
 
 export interface ExplainResult {
@@ -25,4 +30,3 @@ export interface ExplainError {
 }
 
 export type ExplainResponse = ExplainResult | ExplainError;
-
