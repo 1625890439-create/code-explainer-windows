@@ -29,7 +29,7 @@ Loop 30
 
 ; 启动完成提示
 MsgBox(
-    "Code Explainer Debug 模式已启动！`n`n热键: Ctrl+Alt-\`n每步都会弹窗显示进度",
+    "Code Explainer Debug 模式已启动！`n`n热键: Ctrl+Alt+Z（普通）/ Ctrl+Alt+X（终端）`n每步都会弹窗显示进度",
     "Debug 启动完成"
 )
 

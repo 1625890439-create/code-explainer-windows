@@ -4,17 +4,20 @@
 ProjectRoot := "C:\Users\admin\Desktop\Hermes\code-explainer-windows"
 PipeClient := ProjectRoot . "\pipe-client.js"
 
-^!SC02B:: {
-    MsgBox("① 热键触发：Ctrl+Alt+\ 被捕获", "Debug Step 1/6")
+; 通用 debug：复制选中文本 → 发送给 pipe（每步弹窗）
+SendToExplainerDebug(label, copyKeys) {
+    global PipeClient
+
+    MsgBox("① 热键触发：" . label . " 被捕获", "Debug Step 1/6")
 
     KeyWait "Ctrl"
     KeyWait "Alt"
 
-    MsgBox("② 准备复制：将读取选中文本", "Debug Step 2/6")
+    MsgBox("② 准备复制：将读取选中文本（" . copyKeys . "）", "Debug Step 2/6")
 
     originalClipboard := ClipboardAll()
     A_Clipboard := ""
-    Send "^c"
+    Send copyKeys
     if !ClipWait(2) {
         MsgBox("❌ 复制超时：2秒内未获取到剪贴板内容", "Debug - 失败")
         A_Clipboard := originalClipboard
@@ -50,3 +53,9 @@ PipeClient := ProjectRoot . "\pipe-client.js"
 
     try FileDelete(TempFile)
 }
+
+; 普通应用：Ctrl+Alt+Z → Ctrl+C
+^!SC02C:: SendToExplainerDebug("Ctrl+Alt+Z", "^c")
+
+; 终端/shell：Ctrl+Alt+X → Ctrl+Shift+C
+^!SC02D:: SendToExplainerDebug("Ctrl+Alt+X", "^+c")

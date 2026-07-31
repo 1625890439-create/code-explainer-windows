@@ -1,11 +1,11 @@
 # Code Explainer for Windows
 
-Windows 代码解释工具。在任意编辑器中选中代码，按 `Ctrl+Alt+\`，桌面窗口自动展示 AI 解释结果。
+Windows 代码解释工具。在任意编辑器中选中代码，按 `Ctrl+Alt+Z`，桌面窗口自动展示 AI 解释结果。
 
 ## 运行效果
 
 1. 在 VS Code / 记事本 / 浏览器等任意应用中选中代码
-2. 按 `Ctrl+Alt+\`
+2. 按 `Ctrl+Alt+Z`
 3. Code Explainer 窗口弹出，显示中文解释、风险提示和可追问问题
 
 ## 环境要求
@@ -81,7 +81,7 @@ code-explainer-windows\integrations\autohotkey\code-explainer.ahk
 
 1. 确认热键脚本和 Electron 都已在运行
 2. 在任意应用中**选中代码文本**
-3. 按 `Ctrl+Alt+\`（反斜杠键）
+3. 按 `Ctrl+Alt+Z`
 4. 等待窗口弹出显示解释结果
 
 ## 项目结构
@@ -109,7 +109,7 @@ code-explainer-windows/
 | 文件 | 作用 |
 |------|------|
 | `launch.ahk` | 一键启动 Electron + 热键 |
-| `integrations/autohotkey/code-explainer.ahk` | 全局热键 `Ctrl+Alt+\`，捕获选中代码并通过 pipe 发送 |
+| `integrations/autohotkey/code-explainer.ahk` | 全局热键 `Ctrl+Alt+Z`，捕获选中代码并通过 pipe 发送 |
 | `pipe-client.js` | 独立 Node.js 脚本，从 stdin 读取代码，通过 named pipe 发送给 Electron |
 | `apps/desktop/src/main/selection-server.ts` | Named pipe 服务端，接收 AHK 发来的代码 |
 | `apps/desktop/src/main/index.ts` | Electron 主进程入口，连接 pipe server、API provider、IPC handler |

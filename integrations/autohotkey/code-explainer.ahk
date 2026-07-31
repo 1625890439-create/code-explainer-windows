@@ -4,13 +4,16 @@
 ProjectRoot := "C:\Users\admin\Desktop\Hermes\code-explainer-windows"
 PipeClient := ProjectRoot . "\pipe-client.js"
 
-^!SC02B:: {
+; 通用：复制选中文本 → 发送给 pipe
+SendToExplainer(copyKeys) {
+    global PipeClient
+
     KeyWait "Ctrl"
     KeyWait "Alt"
 
     originalClipboard := ClipboardAll()
     A_Clipboard := ""
-    Send "^c"
+    Send copyKeys
     if !ClipWait(2) {
         A_Clipboard := originalClipboard
         return
@@ -35,3 +38,9 @@ PipeClient := ProjectRoot . "\pipe-client.js"
 
     try FileDelete(TempFile)
 }
+
+; 普通应用：Ctrl+Alt+Z → Ctrl+C
+^!SC02C:: SendToExplainer("^c")
+
+; 终端/shell：Ctrl+Alt+X → Ctrl+Shift+C
+^!SC02D:: SendToExplainer("^+c")

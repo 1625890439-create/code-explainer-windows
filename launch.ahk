@@ -29,7 +29,7 @@ Loop 30
 
 ; 启动完成提示
 MsgBox(
-    "Code Explainer 已启动！`n`n热键: Ctrl+Alt-\",
+    "Code Explainer 已启动！`n`n热键: Ctrl+Alt+Z（普通）/ Ctrl+Alt+X（终端）",
     "启动完成"
 )
 
